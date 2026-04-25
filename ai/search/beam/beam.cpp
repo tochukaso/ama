@@ -285,10 +285,36 @@ Result search_multi(
         queues.push_back(q);
     }
 
+#ifdef __EMSCRIPTEN__
+    // WASM: std::thread is not supported. Run searches sequentially —
+    // produces identical results because the multi-thread version does
+    // not depend on thread ordering (final sort is the only ordering step).
+    for (auto i = 0; i < beam::BRANCH; ++i) {
+        auto b = beam::search(field, queues[i], w, configs);
+
+        if (b.candidates.empty()) {
+            continue;
+        }
+
+        if (result.candidates.empty()) {
+            result = b;
+            continue;
+        }
+
+        for (auto& c1 : result.candidates) {
+            for (auto& c2 : b.candidates) {
+                if (c1.placement == c2.placement) {
+                    c1.score += c2.score;
+                    break;
+                }
+            }
+        }
+    }
+#else
     // Searching multiple queues at the same time
     std::vector<std::thread> threads;
     std::mutex mtx;
-    
+
     for (auto i = 0; i < beam::BRANCH; ++i) {
         threads.emplace_back([&] (i32 id) {
             // Beam search for 1 queue
@@ -321,6 +347,7 @@ Result search_multi(
     for (auto& t : threads) {
         t.join();
     }
+#endif
 
     // Sorts candidates by their total accumulated scores
     if (!result.candidates.empty()) {
