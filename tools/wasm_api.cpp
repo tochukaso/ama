@@ -85,4 +85,51 @@ int ama_suggest(
     return n;
 }
 
+// Diagnostic: returns the loaded value for a given weight key.
+// 0=chain, 1=y, 2=key, 3=chi, 4=shape, 5=well, 6=bump, 7=form,
+// 8=link_2, 9=link_3, 10=waste_14, 11=side, 12=nuisance, 13=tear, 14=waste.
+EMSCRIPTEN_KEEPALIVE
+int ama_diag_weight(int idx) {
+    if (!g_inited) return -999999;
+    switch (idx) {
+        case 0:  return g_weight.chain;
+        case 1:  return g_weight.y;
+        case 2:  return g_weight.key;
+        case 3:  return g_weight.chi;
+        case 4:  return g_weight.shape;
+        case 5:  return g_weight.well;
+        case 6:  return g_weight.bump;
+        case 7:  return g_weight.form;
+        case 8:  return g_weight.link_2;
+        case 9:  return g_weight.link_3;
+        case 10: return g_weight.waste_14;
+        case 11: return g_weight.side;
+        case 12: return g_weight.nuisance;
+        case 13: return g_weight.tear;
+        case 14: return g_weight.waste;
+        default: return -999999;
+    }
+}
+
+// Diagnostic: decode field_chars into ama's Field, then write per-column heights
+// (6 bytes, ama coord order x=0..5) into heights_out and return total cell count.
+// Lets JS verify that the bytes it sent are interpreted as the field it expects.
+EMSCRIPTEN_KEEPALIVE
+int ama_diag_field(const char* field_chars, uint8_t* heights_out) {
+    Field field;
+    for (int r = 0; r < 13; r++) {
+        for (int c = 0; c < 6; c++) {
+            cell::Type t = to_ama(field_chars[r * 6 + c]);
+            if (t != cell::Type::NONE) {
+                int y = 12 - r;
+                field.set_cell((i8)c, (i8)y, t);
+            }
+        }
+    }
+    u8 hs[6];
+    field.get_heights(hs);
+    for (int i = 0; i < 6; i++) heights_out[i] = hs[i];
+    return (int)field.get_count();
+}
+
 }
