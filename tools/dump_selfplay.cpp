@@ -70,6 +70,7 @@ int main(int argc, char** argv) {
     string preset = "build";
     string out_path = "selfplay.jsonl";
     int topk = 5;
+    int early_stop_chain = 0; // 0 = disabled
 
     for (int i = 1; i + 1 < argc; i += 2) {
         string a = argv[i];
@@ -79,6 +80,7 @@ int main(int argc, char** argv) {
         else if (a == "--weights") preset = v;
         else if (a == "--out") out_path = v;
         else if (a == "--topk") topk = std::stoi(v);
+        else if (a == "--early-stop-chain") early_stop_chain = std::stoi(v);
     }
 
     beam::eval::Weight w;
@@ -144,6 +146,8 @@ int main(int argc, char** argv) {
             score += (int)chain.score;
             if ((int)chain.count > max_chain) max_chain = (int)chain.count;
             move_index++;
+
+            if (early_stop_chain > 0 && (int)chain.count >= early_stop_chain) break;
         }
 
         for (auto& r : rows) {
