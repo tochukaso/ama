@@ -27,9 +27,12 @@ int ama_init() {
     if (!f.good()) return -1;
     nlohmann::json js; f >> js;
     if (!js.contains("build")) return -2;
+    int build_keys = (int)js["build"].size();
     from_json(js["build"], g_weight);
     g_inited = true;
-    return 0;
+    // Return number of weight keys read so JS can verify the embed file
+    // was actually populated (expect ~30+ for build preset).
+    return build_keys;
 }
 
 // field_chars: 78 bytes (13 rows x 6 cols), 'R'/'B'/'Y'/'P'/'.' (ours convention, top-down)
