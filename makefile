@@ -17,8 +17,9 @@ CXXFLAGS += -DPEXT
 endif
 
 SRC_AI = core/*.cpp ai/*.cpp ai/search/*.cpp
+SRC_DUMP = core/*.cpp ai/*.cpp ai/search/*.cpp ai/search/beam/*.cpp
 
-.PHONY: all puyop test clean makedir
+.PHONY: all puyop test clean makedir dump_selfplay
 
 all: puyop
 
@@ -27,6 +28,9 @@ puyop: makedir
 
 tuner: makedir
 	@$(CXX) $(CXXFLAGS) $(SRC_AI) tuner/*.cpp -o bin/tuner/tuner.exe
+
+dump_selfplay: makedir
+	@$(CXX) $(CXXFLAGS) $(SRC_DUMP) tools/dump_selfplay.cpp -o bin/dump_selfplay/dump_selfplay.exe
 
 test: makedir
 	@$(CXX) $(CXXFLAGS) $(SRC_AI) test/*.cpp -o bin/test/test.exe
@@ -40,5 +44,6 @@ makedir:
 	@mkdir -p bin/puyop
 	@mkdir -p bin/test
 	@mkdir -p bin/tuner/data
+	@mkdir -p bin/dump_selfplay
 
 .DEFAULT_GOAL := puyop
