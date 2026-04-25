@@ -61,7 +61,8 @@ int ama_suggest(
     // beam consumes 2 ply; n2 accepted in the C ABI for forward compatibility.
     (void)n2a; (void)n2c;
 
-    auto result = beam::search_multi(field, q, g_weight);
+    // search_multi requires std::thread (not available in WASM); use single-thread search.
+    auto result = beam::search(field, q, g_weight);
     int n = (int)result.candidates.size();
     if (n == 0) return -2;
     if (n > 5) n = 5;

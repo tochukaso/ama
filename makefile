@@ -61,9 +61,11 @@ EMLDFLAGS = -s WASM=1 \
             -s ENVIRONMENT=web,worker,node \
             -s ALLOW_MEMORY_GROWTH=1 \
             -s INITIAL_MEMORY=33554432 \
+            -s NO_DISABLE_EXCEPTION_CATCHING=1 \
             -s EXPORTED_FUNCTIONS='["_ama_init","_ama_suggest","_malloc","_free"]' \
             -s EXPORTED_RUNTIME_METHODS='["cwrap","ccall","HEAPU8"]' \
             -s EXPORT_NAME='AmaModule' \
+            -fexceptions \
             --embed-file config.json
 
 wasm: makedir
