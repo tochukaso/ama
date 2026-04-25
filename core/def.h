@@ -20,7 +20,11 @@
 #include <mutex>
 #include <atomic>
 #include <optional>
+#ifdef __EMSCRIPTEN__
+#include <smmintrin.h>  // SSE4.1; pull only what ama uses
+#else
 #include <x86intrin.h>
+#endif
 #include <condition_variable>
 #include <numeric>
 #include <stdalign.h>
