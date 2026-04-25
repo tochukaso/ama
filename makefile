@@ -19,7 +19,7 @@ endif
 SRC_AI = core/*.cpp ai/*.cpp ai/search/*.cpp
 SRC_DUMP = core/*.cpp ai/*.cpp ai/search/*.cpp ai/search/beam/*.cpp
 
-.PHONY: all puyop test clean makedir dump_selfplay
+.PHONY: all puyop test clean makedir dump_selfplay wasm
 
 all: puyop
 
@@ -45,5 +45,27 @@ makedir:
 	@mkdir -p bin/test
 	@mkdir -p bin/tuner/data
 	@mkdir -p bin/dump_selfplay
+	@mkdir -p bin/wasm
 
 .DEFAULT_GOAL := puyop
+
+EMCC = emcc
+EMCXXFLAGS = -DUNICODE -DNDEBUG -std=c++20 \
+             -msse4.1 -msimd128 \
+             -O3 -flto \
+             -DEMSCRIPTEN
+
+EMLDFLAGS = -s WASM=1 \
+            -s MODULARIZE=1 \
+            -s EXPORT_ES6=1 \
+            -s ENVIRONMENT=web,worker,node \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s INITIAL_MEMORY=33554432 \
+            -s EXPORTED_FUNCTIONS='["_ama_init","_ama_suggest","_malloc","_free"]' \
+            -s EXPORTED_RUNTIME_METHODS='["cwrap","ccall","HEAPU8"]' \
+            -s EXPORT_NAME='AmaModule' \
+            --embed-file config.json
+
+wasm: makedir
+	@$(EMCC) $(EMCXXFLAGS) $(SRC_DUMP) tools/wasm_api.cpp \
+		$(EMLDFLAGS) -o bin/wasm/ama.js
