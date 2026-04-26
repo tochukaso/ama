@@ -193,11 +193,19 @@ constexpr Data MERI = []
     return pattern;
 } ();
 
+#ifdef GTR_ONLY
+// GTR 専用ビルド。form 評価対象を GTR 一本に絞ることで
+// AI の誘導先を「GTR を作る」だけに固定する(訓練モード用)。
+constexpr Data list[] = {
+    GTR
+};
+#else
 constexpr Data list[] = {
     GTR,
     FRON,
     SGTR
 };
+#endif
 
 constexpr usize COUNT = std::size(list);
 

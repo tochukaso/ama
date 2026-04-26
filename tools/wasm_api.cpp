@@ -22,17 +22,21 @@ static cell::Type to_ama(char c) {
 extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
-int ama_init() {
+int ama_init_preset(const char* name) {
     std::ifstream f("config.json");
     if (!f.good()) return -1;
     nlohmann::json js; f >> js;
-    if (!js.contains("build")) return -2;
-    int build_keys = (int)js["build"].size();
-    from_json(js["build"], g_weight);
+    std::string key = (name && *name) ? std::string(name) : std::string("build");
+    if (!js.contains(key)) return -2;
+    int n_keys = (int)js[key].size();
+    from_json(js[key], g_weight);
     g_inited = true;
-    // Return number of weight keys read so JS can verify the embed file
-    // was actually populated (expect ~30+ for build preset).
-    return build_keys;
+    return n_keys;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ama_init() {
+    return ama_init_preset("build");
 }
 
 // field_chars: 78 bytes (13 rows x 6 cols), 'R'/'B'/'Y'/'P'/'.' (ours convention, top-down)

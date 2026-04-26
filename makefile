@@ -19,7 +19,7 @@ endif
 SRC_AI = core/*.cpp ai/*.cpp ai/search/*.cpp
 SRC_DUMP = core/*.cpp ai/*.cpp ai/search/*.cpp ai/search/beam/*.cpp
 
-.PHONY: all puyop test clean makedir dump_selfplay wasm
+.PHONY: all puyop test clean makedir dump_selfplay wasm wasm-gtr
 
 all: puyop
 
@@ -46,6 +46,7 @@ makedir:
 	@mkdir -p bin/tuner/data
 	@mkdir -p bin/dump_selfplay
 	@mkdir -p bin/wasm
+	@mkdir -p bin/wasm-gtr
 
 .DEFAULT_GOAL := puyop
 
@@ -62,7 +63,7 @@ EMLDFLAGS = -s WASM=1 \
             -s ALLOW_MEMORY_GROWTH=1 \
             -s INITIAL_MEMORY=33554432 \
             -s NO_DISABLE_EXCEPTION_CATCHING=1 \
-            -s EXPORTED_FUNCTIONS='["_ama_init","_ama_suggest","_ama_diag_field","_ama_diag_weight","_malloc","_free"]' \
+            -s EXPORTED_FUNCTIONS='["_ama_init","_ama_init_preset","_ama_suggest","_ama_diag_field","_ama_diag_weight","_malloc","_free"]' \
             -s EXPORTED_RUNTIME_METHODS='["cwrap","ccall","HEAPU8"]' \
             -s EXPORT_NAME='AmaModule' \
             -fexceptions \
@@ -71,3 +72,9 @@ EMLDFLAGS = -s WASM=1 \
 wasm: makedir
 	@$(EMCC) $(EMCXXFLAGS) $(SRC_DUMP) tools/wasm_api.cpp \
 		$(EMLDFLAGS) -o bin/wasm/ama.js
+
+# 訓練モード用の専用ビルド。-DGTR_ONLY で form::list を { GTR } に絞り、
+# ama が「GTR を作る」だけを目指すようにする。
+wasm-gtr: makedir
+	@$(EMCC) $(EMCXXFLAGS) -DGTR_ONLY $(SRC_DUMP) tools/wasm_api.cpp \
+		$(EMLDFLAGS) -o bin/wasm-gtr/ama.js
