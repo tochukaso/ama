@@ -1,5 +1,9 @@
 #pragma once
 
+#include <string>
+#include <vector>
+#include <string_view>
+
 #include "../../../core/core.h"
 
 namespace beam
@@ -193,21 +197,60 @@ constexpr Data MERI = []
     return pattern;
 } ();
 
-#ifdef GTR_ONLY
-// GTR 専用ビルド。form 評価対象を GTR 一本に絞ることで
-// AI の誘導先を「GTR を作る」だけに固定する(訓練モード用)。
-constexpr Data list[] = {
-    GTR
-};
-#else
+// 全 form を 1 本に集約。コンパイル時に絞らず、実行時に
+// active_mask() で評価対象を切り替える(GTR-only 訓練ビルドはこれで再現)。
+// 新パターン (階段連鎖・鍵積み等) を増やすときは、ここに追記し
+// names[] にも同じ順序で名前を足す。
 constexpr Data list[] = {
     GTR,
     FRON,
     SGTR
 };
-#endif
 
 constexpr usize COUNT = std::size(list);
+
+constexpr std::string_view names[COUNT] = {
+    "GTR",
+    "FRON",
+    "SGTR"
+};
+
+static_assert(COUNT <= 32, "active_mask uses u32; widen if more forms are added");
+
+// 評価対象の form を表すビットマスク。bit i が立っていれば list[i] を評価する。
+// 既定値は全 form 有効 (上位互換: 既存ビルドは挙動が変わらない)。
+// 書き込みは init 経路のみ、search 中はスレッド間で読み取り専用。
+inline u32& active_mask()
+{
+    static u32 m = (COUNT >= 32) ? 0xFFFFFFFFu : ((1u << COUNT) - 1u);
+    return m;
+}
+
+inline bool is_active(usize i)
+{
+    return (active_mask() >> i) & 1u;
+}
+
+// 名前列で active_mask を上書き。未知の名前は無視。
+// 空配列を渡すと全 form 無効になる(form 評価がスキップされる)。
+inline void set_active_by_names(const std::vector<std::string>& selected)
+{
+    u32 m = 0;
+    for (const auto& n : selected) {
+        for (usize i = 0; i < COUNT; ++i) {
+            if (n == names[i]) {
+                m |= (1u << i);
+                break;
+            }
+        }
+    }
+    active_mask() = m;
+}
+
+inline void reset_active_all()
+{
+    active_mask() = (COUNT >= 32) ? 0xFFFFFFFFu : ((1u << COUNT) - 1u);
+}
 
 };
 

@@ -26,8 +26,9 @@ void evaluate(node::Data& node, const Weight& w)
             form = 0;
         }
         else {
-            // Find the best matching form
-            for (i32 i = 0; i < form::COUNT; ++i) {
+            // Find the best matching form (form::active_mask() で実行時に絞る)
+            for (i32 i = 0; i < (i32)form::COUNT; ++i) {
+                if (!form::is_active((usize)i)) continue;
                 form = std::max(form, form::evaluate(node.field, heights, form::list[i]));
             }
         }
