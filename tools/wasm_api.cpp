@@ -1,9 +1,12 @@
 #include <cstring>
 #include <fstream>
+#include <string>
+#include <vector>
 #include <emscripten/emscripten.h>
 #include "../core/core.h"
 #include "../ai/search/beam/beam.h"
 #include "../ai/search/beam/eval.h"
+#include "../ai/search/beam/form.h"
 #include "../lib/nlohmann/json.hpp"
 
 static beam::eval::Weight g_weight;
@@ -28,8 +31,25 @@ int ama_init_preset(const char* name) {
     nlohmann::json js; f >> js;
     std::string key = (name && *name) ? std::string(name) : std::string("build");
     if (!js.contains(key)) return -2;
-    int n_keys = (int)js[key].size();
-    from_json(js[key], g_weight);
+    const auto& obj = js[key];
+    int n_keys = (int)obj.size();
+
+    // NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE で生成される from_json は宣言済みフィールドのみ参照し、
+    // 未知キー("forms" など) は無視するのでそのまま渡してよい。
+    from_json(obj, g_weight);
+
+    // form 切り替え。"forms": ["GTR", ...] が指定されていればそれだけ有効化。
+    // 未指定なら全 form 有効(上位互換)。
+    if (obj.contains("forms") && obj["forms"].is_array()) {
+        std::vector<std::string> sel;
+        for (const auto& v : obj["forms"]) {
+            if (v.is_string()) sel.push_back(v.get<std::string>());
+        }
+        beam::form::set_active_by_names(sel);
+    } else {
+        beam::form::reset_active_all();
+    }
+
     g_inited = true;
     return n_keys;
 }

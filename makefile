@@ -19,7 +19,7 @@ endif
 SRC_AI = core/*.cpp ai/*.cpp ai/search/*.cpp
 SRC_DUMP = core/*.cpp ai/*.cpp ai/search/*.cpp ai/search/beam/*.cpp
 
-.PHONY: all puyop test clean makedir dump_selfplay wasm wasm-gtr
+.PHONY: all puyop test clean makedir dump_selfplay wasm
 
 all: puyop
 
@@ -46,7 +46,6 @@ makedir:
 	@mkdir -p bin/tuner/data
 	@mkdir -p bin/dump_selfplay
 	@mkdir -p bin/wasm
-	@mkdir -p bin/wasm-gtr
 
 .DEFAULT_GOAL := puyop
 
@@ -69,12 +68,8 @@ EMLDFLAGS = -s WASM=1 \
             -fexceptions \
             --embed-file config.json
 
+# form::list は実行時に config.json の "forms" で絞れるので 1 ビルドのみ。
+# 訓練 (GTR 専用) は preset "gtr" を ama_init_preset 経由で読み込む。
 wasm: makedir
 	@$(EMCC) $(EMCXXFLAGS) $(SRC_DUMP) tools/wasm_api.cpp \
 		$(EMLDFLAGS) -o bin/wasm/ama.js
-
-# 訓練モード用の専用ビルド。-DGTR_ONLY で form::list を { GTR } に絞り、
-# ama が「GTR を作る」だけを目指すようにする。
-wasm-gtr: makedir
-	@$(EMCC) $(EMCXXFLAGS) -DGTR_ONLY $(SRC_DUMP) tools/wasm_api.cpp \
-		$(EMLDFLAGS) -o bin/wasm-gtr/ama.js
