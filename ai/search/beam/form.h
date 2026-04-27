@@ -197,6 +197,58 @@ constexpr Data MERI = []
     return pattern;
 } ();
 
+// 階段連鎖 (Staircase Chain)。
+// 5 段の階段で、各段は 2 セルの水平ペア。下段の左から右上に向かって積み上がる:
+//   . . . . . .
+//   . . . . 5 5
+//   . . . 4 4 .
+//   . . 3 3 . .
+//   . 2 2 . . .
+//   1 1 . . . .
+// 各段の 2 セルは同色 (matrix[i][i]=1)、隣り合う段は別色 (matrix[i][i±1]=-1)。
+// 非隣接の段に色制約は無いので 4 色運用 (R/G/B/Y) で安全に組める。
+constexpr Data KAIDAN = []
+{
+    Data pattern = { 0 };
+
+    const u8 dform[HEIGHT][6] =
+    {
+        { 0,  0,  0,  0,  0,  0 },
+        { 0,  0,  0,  0,  5,  5 },
+        { 0,  0,  0,  4,  4,  0 },
+        { 0,  0,  3,  3,  0,  0 },
+        { 0,  2,  2,  0,  0,  0 },
+        { 1,  1,  0,  0,  0,  0 }
+    };
+
+    const i8 dmatrix[AREA][AREA] =
+    {
+        { 0,  0,  0,  0,  0,  0,  0,  0 },
+        { 0,  1, -1,  0,  0,  0,  0,  0 },
+        { 0, -1,  1, -1,  0,  0,  0,  0 },
+        { 0,  0, -1,  1, -1,  0,  0,  0 },
+        { 0,  0,  0, -1,  1, -1,  0,  0 },
+        { 0,  0,  0,  0, -1,  1,  0,  0 },
+        { 0,  0,  0,  0,  0,  0,  0,  0 },
+        { 0,  0,  0,  0,  0,  0,  0,  0 }
+    };
+
+    for (i8 x = 0; x < 6; ++x) {
+        for (i8 y = 0; y < HEIGHT; ++y) {
+            pattern.form[y][x] = dform[HEIGHT - 1 - y][x];
+            pattern.groups = std::max(pattern.groups, dform[HEIGHT - 1 - y][x]);
+        }
+    }
+
+    for (i8 x = 0; x < AREA; ++x) {
+        for (i8 y = 0; y < AREA; ++y) {
+            pattern.matrix[y][x] = dmatrix[y][x];
+        }
+    }
+
+    return pattern;
+} ();
+
 // 全 form を 1 本に集約。コンパイル時に絞らず、実行時に
 // active_mask() で評価対象を切り替える(GTR-only 訓練ビルドはこれで再現)。
 // 新パターン (階段連鎖・鍵積み等) を増やすときは、ここに追記し
@@ -204,7 +256,8 @@ constexpr Data MERI = []
 constexpr Data list[] = {
     GTR,
     FRON,
-    SGTR
+    SGTR,
+    KAIDAN
 };
 
 constexpr usize COUNT = std::size(list);
@@ -212,7 +265,8 @@ constexpr usize COUNT = std::size(list);
 constexpr std::string_view names[COUNT] = {
     "GTR",
     "FRON",
-    "SGTR"
+    "SGTR",
+    "KAIDAN"
 };
 
 static_assert(COUNT <= 32, "active_mask uses u32; widen if more forms are added");
