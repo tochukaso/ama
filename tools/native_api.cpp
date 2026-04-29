@@ -3,10 +3,13 @@
 #include <exception>
 #include <fstream>
 #include <new>
+#include <string>
+#include <vector>
 
 #include "../core/core.h"
 #include "../ai/search/beam/beam.h"
 #include "../ai/search/beam/eval.h"
+#include "../ai/search/beam/form.h"
 #include "../lib/nlohmann/json.hpp"
 
 #define API_EXPORT __attribute__((visibility("default")))
@@ -44,8 +47,26 @@ int ama_native_init_preset(const char* preset_name, const char* config_path) {
     nlohmann::json js;
     try { f >> js; } catch (...) { return -3; }
     if (!js.contains(preset_name)) return -2;
-    try { from_json(js[preset_name], g_weight); }
+    const auto& obj = js[preset_name];
+    try { from_json(obj, g_weight); }
     catch (...) { return -4; }
+
+    // Match wasm_api.cpp: a preset's optional "forms" array narrows
+    // form::active_mask to those template names (e.g. "kaidan" → ["KAIDAN"]).
+    // Without this, all 4 forms (GTR/FRON/SGTR/KAIDAN) stay active and the
+    // form-weight bias gets diluted across the wrong shapes.
+    try {
+        if (obj.contains("forms") && obj["forms"].is_array()) {
+            std::vector<std::string> sel;
+            for (const auto& v : obj["forms"]) {
+                if (v.is_string()) sel.push_back(v.get<std::string>());
+            }
+            beam::form::set_active_by_names(sel);
+        } else {
+            beam::form::reset_active_all();
+        }
+    } catch (...) { return -4; }
+
     g_inited = true;
     return 0;
 }
