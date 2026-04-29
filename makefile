@@ -73,3 +73,46 @@ EMLDFLAGS = -s WASM=1 \
 wasm: makedir
 	@$(EMCC) $(EMCXXFLAGS) $(SRC_DUMP) tools/wasm_api.cpp \
 		$(EMLDFLAGS) -o bin/wasm/ama.js
+
+# === Native static library builds (consumed by Tauri Rust FFI) ===
+
+NATIVE_CXX            = clang++
+NATIVE_CXXFLAGS_BASE  = -DNDEBUG -std=c++20 -O3 -flto -fvisibility=hidden -fPIC
+NATIVE_SRC            = $(SRC_DUMP) tools/native_api.cpp
+
+CXXFLAGS_X86_DARWIN   = -arch x86_64 -msse4.1 -mbmi2 -DPEXT
+CXXFLAGS_ARM_DARWIN   = -arch arm64  -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX
+CXXFLAGS_ARM_ANDROID  = --target=aarch64-linux-android24 \
+                        --sysroot=$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/sysroot \
+                        -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX
+
+NATIVE_OUT_X86_DARWIN  = bin/native/x86_64-apple-darwin
+NATIVE_OUT_ARM_DARWIN  = bin/native/aarch64-apple-darwin
+NATIVE_OUT_ARM_ANDROID = bin/native/aarch64-linux-android
+
+.PHONY: native-x86-darwin native-arm-darwin native-arm-android native-all
+
+native-x86-darwin: makedir
+	@mkdir -p $(NATIVE_OUT_X86_DARWIN)/obj
+	@rm -f $(NATIVE_OUT_X86_DARWIN)/obj/*.o
+	$(NATIVE_CXX) $(NATIVE_CXXFLAGS_BASE) $(CXXFLAGS_X86_DARWIN) \
+	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_X86_DARWIN)/obj/
+	ar rcs $(NATIVE_OUT_X86_DARWIN)/libama_native.a $(NATIVE_OUT_X86_DARWIN)/obj/*.o
+
+native-arm-darwin: makedir
+	@mkdir -p $(NATIVE_OUT_ARM_DARWIN)/obj
+	@rm -f $(NATIVE_OUT_ARM_DARWIN)/obj/*.o
+	$(NATIVE_CXX) $(NATIVE_CXXFLAGS_BASE) $(CXXFLAGS_ARM_DARWIN) \
+	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_ARM_DARWIN)/obj/
+	ar rcs $(NATIVE_OUT_ARM_DARWIN)/libama_native.a $(NATIVE_OUT_ARM_DARWIN)/obj/*.o
+
+native-arm-android: makedir
+	@if [ -z "$(NDK_HOME)" ]; then echo "NDK_HOME not set" >&2; exit 1; fi
+	@mkdir -p $(NATIVE_OUT_ARM_ANDROID)/obj
+	@rm -f $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang++ \
+	    $(NATIVE_CXXFLAGS_BASE) -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX \
+	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_ARM_ANDROID)/obj/
+	ar rcs $(NATIVE_OUT_ARM_ANDROID)/libama_native.a $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
+
+native-all: native-x86-darwin native-arm-darwin native-arm-android
