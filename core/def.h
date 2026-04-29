@@ -22,9 +22,10 @@
 #include <optional>
 #ifdef __EMSCRIPTEN__
 #include <smmintrin.h>  // SSE4.1; pull only what ama uses
-#else
-#include <x86intrin.h>
+#elif defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>  // x86 native (Apple Clang / GCC) — includes _pext_u32 when -mbmi2
 #endif
+// arm64 native builds rely on -include tools/sse2neon.h via the makefile.
 #include <condition_variable>
 #include <numeric>
 #include <stdalign.h>
