@@ -77,7 +77,11 @@ wasm: makedir
 # === Native static library builds (consumed by Tauri Rust FFI) ===
 
 NATIVE_CXX            = clang++
-NATIVE_CXXFLAGS_BASE  = -DNDEBUG -std=c++20 -O3 -flto -fvisibility=hidden -fPIC
+# -flto omitted on purpose: with LTO each .o becomes LLVM bitcode, and the
+# linker on a CI runner with older clang (e.g. macos-14 image's libLTO 15) can
+# refuse a library produced by a newer libLTO (Xcode 17 producer). Plain
+# native object files keep the .a portable across clang versions.
+NATIVE_CXXFLAGS_BASE  = -DNDEBUG -std=c++20 -O3 -fvisibility=hidden -fPIC
 NATIVE_SRC            = $(SRC_DUMP) tools/native_api.cpp
 
 CXXFLAGS_X86_DARWIN   = -arch x86_64 -msse4.1 -mbmi2 -DPEXT
