@@ -77,20 +77,25 @@ wasm: makedir
 # === Native static library builds (consumed by Tauri Rust FFI) ===
 
 NATIVE_CXX            = clang++
-NATIVE_CXXFLAGS_BASE  = -DNDEBUG -std=c++20 -O3 -flto -fvisibility=hidden -fPIC
+# -flto omitted on purpose: with LTO each .o becomes LLVM bitcode, and the
+# linker on a CI runner with older clang (e.g. macos-14 image's libLTO 15) can
+# refuse a library produced by a newer libLTO (Xcode 17 producer). Plain
+# native object files keep the .a portable across clang versions.
+NATIVE_CXXFLAGS_BASE  = -DNDEBUG -std=c++20 -O3 -fvisibility=hidden -fPIC
 NATIVE_SRC            = $(SRC_DUMP) tools/native_api.cpp
 
 CXXFLAGS_X86_DARWIN   = -arch x86_64 -msse4.1 -mbmi2 -DPEXT
 CXXFLAGS_ARM_DARWIN   = -arch arm64  -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX
-CXXFLAGS_ARM_ANDROID  = --target=aarch64-linux-android24 \
+CXXFLAGS_ARM_ANDROID  = --target=aarch64-linux-android28 \
                         --sysroot=$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/sysroot \
                         -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX
 
 NATIVE_OUT_X86_DARWIN  = bin/native/x86_64-apple-darwin
 NATIVE_OUT_ARM_DARWIN  = bin/native/aarch64-apple-darwin
 NATIVE_OUT_ARM_ANDROID = bin/native/aarch64-linux-android
+NATIVE_OUT_X86_ANDROID = bin/native/x86_64-linux-android
 
-.PHONY: native-x86-darwin native-arm-darwin native-arm-android native-all
+.PHONY: native-x86-darwin native-arm-darwin native-arm-android native-x86-android native-all
 
 native-x86-darwin: makedir
 	@mkdir -p $(NATIVE_OUT_X86_DARWIN)/obj
@@ -110,9 +115,18 @@ native-arm-android: makedir
 	@if [ -z "$(NDK_HOME)" ]; then echo "NDK_HOME not set" >&2; exit 1; fi
 	@mkdir -p $(NATIVE_OUT_ARM_ANDROID)/obj
 	@rm -f $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
-	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang++ \
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android28-clang++ \
 	    $(NATIVE_CXXFLAGS_BASE) -include tools/sse2neon.h -DSSE2NEON_PRECISE_MINMAX \
 	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_ARM_ANDROID)/obj/
-	ar rcs $(NATIVE_OUT_ARM_ANDROID)/libama_native.a $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar rcs $(NATIVE_OUT_ARM_ANDROID)/libama_native.a $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
 
-native-all: native-x86-darwin native-arm-darwin native-arm-android
+native-x86-android: makedir
+	@if [ -z "$(NDK_HOME)" ]; then echo "NDK_HOME not set" >&2; exit 1; fi
+	@mkdir -p $(NATIVE_OUT_X86_ANDROID)/obj
+	@rm -f $(NATIVE_OUT_X86_ANDROID)/obj/*.o
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android28-clang++ \
+	    $(NATIVE_CXXFLAGS_BASE) -msse4.1 -mbmi2 -DPEXT \
+	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_X86_ANDROID)/obj/
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar rcs $(NATIVE_OUT_X86_ANDROID)/libama_native.a $(NATIVE_OUT_X86_ANDROID)/obj/*.o
+
+native-all: native-x86-darwin native-arm-darwin native-arm-android native-x86-android
