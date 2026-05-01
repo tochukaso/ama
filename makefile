@@ -93,8 +93,9 @@ CXXFLAGS_ARM_ANDROID  = --target=aarch64-linux-android28 \
 NATIVE_OUT_X86_DARWIN  = bin/native/x86_64-apple-darwin
 NATIVE_OUT_ARM_DARWIN  = bin/native/aarch64-apple-darwin
 NATIVE_OUT_ARM_ANDROID = bin/native/aarch64-linux-android
+NATIVE_OUT_X86_ANDROID = bin/native/x86_64-linux-android
 
-.PHONY: native-x86-darwin native-arm-darwin native-arm-android native-all
+.PHONY: native-x86-darwin native-arm-darwin native-arm-android native-x86-android native-all
 
 native-x86-darwin: makedir
 	@mkdir -p $(NATIVE_OUT_X86_DARWIN)/obj
@@ -119,4 +120,13 @@ native-arm-android: makedir
 	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_ARM_ANDROID)/obj/
 	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar rcs $(NATIVE_OUT_ARM_ANDROID)/libama_native.a $(NATIVE_OUT_ARM_ANDROID)/obj/*.o
 
-native-all: native-x86-darwin native-arm-darwin native-arm-android
+native-x86-android: makedir
+	@if [ -z "$(NDK_HOME)" ]; then echo "NDK_HOME not set" >&2; exit 1; fi
+	@mkdir -p $(NATIVE_OUT_X86_ANDROID)/obj
+	@rm -f $(NATIVE_OUT_X86_ANDROID)/obj/*.o
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android28-clang++ \
+	    $(NATIVE_CXXFLAGS_BASE) -msse4.1 -mbmi2 -DPEXT \
+	    -c $(NATIVE_SRC) && mv *.o $(NATIVE_OUT_X86_ANDROID)/obj/
+	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar rcs $(NATIVE_OUT_X86_ANDROID)/libama_native.a $(NATIVE_OUT_X86_ANDROID)/obj/*.o
+
+native-all: native-x86-darwin native-arm-darwin native-arm-android native-x86-android
