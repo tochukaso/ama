@@ -113,10 +113,13 @@ int ama_suggest(
 // 全 legal moves を 1 回呼びで取得するための診断 / golden-test 用 API。
 // field_chars: 78 bytes (13 rows x 6 cols)、 ama_suggest と同形式。
 // ca / cc: 現在ペアの軸 / 子色 (pair_equal を活かすため両方受ける)。
-// out: 最大 22 byte (= 候補数 × 2)。 各候補は [axisCol, rotation] の 2 byte。
+// out: 最大 44 byte (= 最大 22 候補 × 2)。 各候補は [axisCol, rotation] の
+//   2 byte。 caller は 44 byte 確保すること。
 //   rotation のエンコードは ama 内部の direction::Type と一致:
 //     UP=0, RIGHT=1, DOWN=2, LEFT=3。 これは puyo3 側の rotation と同値。
-// 戻り値: 書き込んだ候補数 (0..22)、 または初期化前の負値。
+// 戻り値: 書き込んだ候補数 (0..22)、 または初期化前 / null pointer の負値:
+//   -1 = 未初期化 (g_inited=false)
+//   -2 = field_chars or out が NULL
 EMSCRIPTEN_KEEPALIVE
 int ama_legal_moves(
     const char* field_chars,
@@ -124,6 +127,9 @@ int ama_legal_moves(
     uint8_t* out
 ) {
     if (!g_inited) return -1;
+    // C-ABI 越しに JS/FFI から null pointer を渡されると trap するので
+    // 明示的にガード。
+    if (!field_chars || !out) return -2;
 
     Field field;
     for (int r = 0; r < 13; r++) {
