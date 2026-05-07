@@ -4,6 +4,7 @@
 #include <vector>
 #include <emscripten/emscripten.h>
 #include "../core/core.h"
+#include "../core/move.h"
 #include "../ai/search/beam/beam.h"
 #include "../ai/search/beam/eval.h"
 #include "../ai/search/beam/form.h"
@@ -105,6 +106,48 @@ int ama_suggest(
         p[5] = (uint8_t)((score >> 24) & 0xFF);
         p[6] = 0;  // expectedChain placeholder — Candidate has no chain field
         p[7] = 0;  // reserved
+    }
+    return n;
+}
+
+// 全 legal moves を 1 回呼びで取得するための診断 / golden-test 用 API。
+// field_chars: 78 bytes (13 rows x 6 cols)、 ama_suggest と同形式。
+// ca / cc: 現在ペアの軸 / 子色 (pair_equal を活かすため両方受ける)。
+// out: 最大 22 byte (= 候補数 × 2)。 各候補は [axisCol, rotation] の 2 byte。
+//   rotation のエンコードは ama 内部の direction::Type と一致:
+//     UP=0, RIGHT=1, DOWN=2, LEFT=3。 これは puyo3 側の rotation と同値。
+// 戻り値: 書き込んだ候補数 (0..22)、 または初期化前の負値。
+EMSCRIPTEN_KEEPALIVE
+int ama_legal_moves(
+    const char* field_chars,
+    char ca, char cc,
+    uint8_t* out
+) {
+    if (!g_inited) return -1;
+
+    Field field;
+    for (int r = 0; r < 13; r++) {
+        for (int c = 0; c < 6; c++) {
+            cell::Type t = to_ama(field_chars[r * 6 + c]);
+            if (t != cell::Type::NONE) {
+                int y = 12 - r;  // ours r=0 top -> ama y=12
+                field.set_cell((i8)c, (i8)y, t);
+            }
+        }
+    }
+
+    // pair_equal=true は同色ペアで DOWN/LEFT を skip して重複を省く最適化。
+    // golden test では「実際に意味のある全配置」 を取りたいので、 axis と
+    // child の色が異なる時は pair_equal=false (全 22 候補列挙)、 同色なら
+    // pair_equal=true (重複除去後の候補列挙)。
+    bool pair_equal = (to_ama(ca) == to_ama(cc));
+
+    auto placements = move::generate(field, pair_equal);
+    int n = placements.get_size();
+    if (n > 22) n = 22;
+    for (int i = 0; i < n; i++) {
+        out[i * 2 + 0] = (uint8_t)placements[i].x;
+        out[i * 2 + 1] = (uint8_t)placements[i].r;
     }
     return n;
 }
