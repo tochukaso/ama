@@ -1,0 +1,43 @@
+# gitleaks 設定。デフォルトルールを継承しつつ、Claude Code 系の OAuth/session
+# トークンも検出できるようカスタムルールを足す。
+# 実行: `gitleaks git` (履歴) / `gitleaks git --staged` (pre-commit)
+
+title = "ama gitleaks config"
+
+[extend]
+useDefault = true
+
+# ── カスタムルール ────────────────────────────────────────────
+# v8.30 default ruleset には Anthropic Console の API キー (sk-ant-api03-) と
+# Admin キー (sk-ant-admin01-) のルールがあるが、Claude Code が発行する
+# OAuth/セッショントークンのルールが無いので追加する。
+
+[[rules]]
+id = "anthropic-oauth-access-token"
+description = "Anthropic / Claude Code OAuth access token (sk-ant-oat01-)"
+regex = '''\b(sk-ant-oat\d{2}-[a-zA-Z0-9_\-]{50,})\b'''
+keywords = ["sk-ant-oat"]
+
+[[rules]]
+id = "anthropic-session-key"
+description = "Anthropic session key (sk-ant-sid01-)"
+regex = '''\b(sk-ant-sid\d{2}-[a-zA-Z0-9_\-]{50,})\b'''
+keywords = ["sk-ant-sid"]
+
+# ── allowlist ────────────────────────────────────────────────
+# 秘密情報そのものではない、binary / vendored / generated 出力。実際の
+# credential を allowlist してはいけない。
+[[allowlists]]
+description = "binary / vendored / generated assets"
+paths = [
+  '''(^|/)bin/native/.*\.(a|so|dll|dylib)$''',
+  '''(^|/)bin/wasm/ama\.(wasm|js)$''',
+  '''(^|/)bin/native/.*/obj/.*''',
+  '''(^|/)selfplay\.jsonl$''',                  # selfplay 棋譜 (ハイエントロピーだが秘密ではない)
+]
+
+[[allowlists]]
+description = "git の commit SHA / hex hash 文字列を許容"
+regexes = [
+  '''\b[0-9a-f]{40}\b''',
+]

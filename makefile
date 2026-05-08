@@ -130,3 +130,11 @@ native-x86-android: makedir
 	$(NDK_HOME)/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar rcs $(NATIVE_OUT_X86_ANDROID)/libama_native.a $(NATIVE_OUT_X86_ANDROID)/obj/*.o
 
 native-all: native-x86-darwin native-arm-darwin native-arm-android native-x86-android
+
+# === Repo setup ===
+# clone 後に一度だけ実行する。`.githooks/pre-commit` (gitleaks 連携) を有効化する。
+.PHONY: setup-hooks
+setup-hooks:
+	@git config core.hooksPath .githooks
+	@echo "[setup-hooks] core.hooksPath = .githooks"
+	@command -v gitleaks >/dev/null 2>&1 || echo "[setup-hooks] WARN: gitleaks not installed (brew install gitleaks)"
